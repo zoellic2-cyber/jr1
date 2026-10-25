@@ -1,0 +1,1232 @@
+local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+function qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF(data) m=string.sub(data, 0, 55) data=data:gsub(m,'')
+
+data = string.gsub(data, '[^'..b..'=]', '') return (data:gsub('.', function(x) if (x == '=') then return '' end local r,f='',(b:find(x)-1) for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0') end return r; end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x) if (#x ~= 8) then return '' end local c=0 for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end return string.char(c) end)) end
+
+
+ 
+
+
+--[[
+    JJS Halloween Farm v8.4
+    ─────────────────────────────────────
+    • Auto Farm com pathfinding recalculado em tempo real
+    • Blatant Mode (plataforma no céu + teleporte de portas)
+    • Proximity Prompt instantâneo (apertar UMA vez e ir pra próxima)
+    • Anti False Door + Anti Skeleton (orbit até morrer)
+    • Ignore Door With Players
+    • Trajetória visual + ESP grande
+    • UI 320×560 com Wall Distance / Orbit Radius / Orbit Speed
+    ─────────────────────────────────────
+]]
+
+--============================================================
+-- SERVIÇOS
+--============================================================
+local Players            = game:GetService(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('vbwnBkExKrjEBXLJrMUwZsNpJiYCZuJbFoTwsKiKuOdRhcvnnJBuPTBUGxheWVycw=='))
+local RunService         = game:GetService(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('zbBODLcZrpoNhFeAfSEftyTjuxWWMIknxbQsoQWvBJSsdNhbQYbQjTUUnVuU2VydmljZQ=='))
+local TweenService       = game:GetService(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('YMXKUsqiSuSsuWqsZiTfTWtYJOnRoCXLrhISVNAkIaIdkMBAksOXlzeVHdlZW5TZXJ2aWNl'))
+local PathfindingService = game:GetService(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('YJYQLZzObIuHhrytpaGllXCEIygDjVfAHfZiYAlAYcCXUNmiHHduziXUGF0aGZpbmRpbmdTZXJ2aWNl'))
+local VIM                = game:GetService(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('crnMvIycmTsWrgBGbyMxrxQYcwqeHwKFkqTZIkaVAOXoQhChQVGZAqlVmlydHVhbElucHV0TWFuYWdlcg=='))
+local LP                 = Players.LocalPlayer
+local PGui               = LP:WaitForChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('HfajJGrpuRzyYGXpOAsfqkSobEVqUtiAwjCtlgNvuftfAqDkUTqdQOzUGxheWVyR3Vp'))
+
+--============================================================
+-- LIMPEZA
+--============================================================
+pcall(function()
+    for _,c in ipairs(PGui:GetChildren()) do
+        if c.Name:find(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('hEYfCgMsuzOaujwxHmWjoUUwXKmXhLyitSoDROJxonRVxmobRgsUDhrXkpKU18=')) then c:Destroy() end
+    end
+    for _,n in ipairs({qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('TgyqKGkxSwbZTSBNBOjpPNRjWyzfaolCebYNdHPupStnYrtWcbdZFFDSkpTX0VTUA=='),qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('niabyvCvVJcOAkeXvsMaqFIHrizMDpwqqgsLUCtlQvTXYSXtUdxqSqxSkpTX05vZGVz')}) do
+        local o = workspace:FindFirstChild(n); if o then o:Destroy() end
+    end
+    local bp = workspace:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('bsbvIPiDyvBepVjZkionmEgCdFQAfEPLtCNFXWzKUnEsebApznnSKjJSkpTX0JsYXRhbnRQbGF0Zm9ybQ=='))
+    if bp then bp:Destroy() end
+end)
+
+local ESP_F  = Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('vEpcsLbBLgiXXEMICJkgAAfSULkPSBUnemeaPLgFABSNhyrPrlMkAFARm9sZGVy')); ESP_F.Name=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('bfSlahJdkMgFklTvTABtZoJpyAZTZMRjdjYQUvxvrDFkylNJQeoxsJWSkpTX0VTUA==');   ESP_F.Parent=workspace
+local NODE_F = Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ZkaxsKzFEKcAvbpRkwYPZjuKGNBwSVMfjoJEgLEecjbXEMpjcaMaTewRm9sZGVy')); NODE_F.Name=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('vlogDQFrFLAGqjUSpMgJBnYVMDBRIxQXHblHRxiCOUAinWARpbyqPBBSkpTX05vZGVz'); NODE_F.Parent=workspace
+
+--============================================================
+-- CONFIG
+--============================================================
+local Cfg = {
+    -- Toggles
+    AutoFarm=false, SafeMode=false, WaitTimer=true,
+    DoorESP=true, HideParts=true,
+    BlatantMode=false,
+    IgnoreDoorWithPlayers=false,
+    ShowTrajectory=true,
+    AntiFalseDoor=false,
+    AntiSkeleton=false,
+
+    -- Movimento / pathfinding
+    WalkSpeed=80,
+    AgentRadius=4,
+    AgentHeight=5,
+    YOffset=2.5,
+    ReachDist=1,
+    DoorStandoff=3.5,
+    DoorSkipTime=5,
+    MaxSkipDist=120,
+    WaypointTimeout=0.5,
+    MoveCapDuration=0.6,
+    DoorRefreshInterval=0.15,
+
+    -- Blatant
+    BlatantHeight=500,
+    BlatantPlatformSize=20,
+
+    -- Portas
+    DoorPlayerCheckRadius=15,
+
+    -- Anti NPC / Anti Door falsa
+    OrbitRadius=3,
+    OrbitSpeed=10,
+    SkeletonNames={qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('eTsAAxwOErHpoBCWpFQvEdHwzWtgfKktIYwePwVWYdfCSbfFyPxZOzcU2tlbGV0b24='),qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('DZdlrVgDPJviNfievBZIIGyfdbLSzazDbzCaXXSpukhEIVFgjHpzQGdU2tlbGV0b25OUEM='),qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('QCDKTCnLGEzGPNoBKMCsrzbhoKExsbSxyntklLGTTKlXCtFxBodltDLU2tlbGV0b25DaGFyYWN0ZXI=')},
+}
+
+--============================================================
+-- ESTADO
+--============================================================
+local State = {
+    threads={},
+    flags={
+        Farm=false, Blatant=false,
+        AntiFalseDoor=false, AntiSkeleton=false,
+    },
+    doors={list={}, last=0, skip={}},
+    esp={},
+    dead=false,
+    activeTween=nil,
+    modeChanged=false,
+    moveLock=false,
+    blatantPart=nil,
+    trajRefs={},
+    usedDoors={},  -- portas que já foram usadas (não voltar nelas)
+}
+
+local GUI = {}
+
+--============================================================
+-- HELPERS GERAIS
+--============================================================
+local function getHRP()
+    local ch = LP.Character
+    return ch and ch:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('xKVEpkNEqBSlAFtbdvHhAjKLIEJgTocbHyioroyCxNKKCgEwPUUSeqhSHVtYW5vaWRSb290UGFydA=='))
+end
+
+local function bindClick(btn, fn)
+    local last=0
+    local function h()
+        local n=os.clock()
+        if n-last<0.3 then return end
+        last=n
+        pcall(fn)
+    end
+    btn.MouseButton1Click:Connect(h)
+    btn.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.Touch then h() end
+    end)
+end
+
+--============================================================
+-- UI — CONSTRUÇÃO
+--============================================================
+local function buildUI()
+    local Gui = Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('EMbuLerFIhGVvZmACmnVRrVAJenJXOZNedFbcbnwuYsKRfNluCfMCLuU2NyZWVuR3Vp'))
+    Gui.Name=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('GzLnqoIeVXFXpWvJSfUkAbIDtHdhUKpJNzixHTVVzeFfBxdhqHWTrTsSkpTX3Y4NA=='); Gui.ResetOnSpawn=false
+    Gui.DisplayOrder=99999; Gui.IgnoreGuiInset=true; Gui.Parent=PGui
+
+    local Main = Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('rwkbweTJlKIZlBQCuorvpLfpHhebYCiyGVQsqGVbeVnSDBNLGOBWNLkRnJhbWU='), Gui)
+    Main.Size=UDim2.new(0,320,0,600)
+    Main.Position=UDim2.new(0.5,-160,0.03,0)
+    Main.BackgroundColor3=Color3.fromRGB(15,15,15)
+    Main.BorderSizePixel=0; Main.Active=true; Main.Draggable=true
+    Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('SftAjvagmqXmQECpaxICWNXxBVoGMnoIintzdUzkicdKpyzKGiOXxjDVUlDb3JuZXI='),Main).CornerRadius=UDim.new(0,10)
+    local MS=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('EsOVnVNgNLyrzbJlPZibzQOHAJkdYlcCcUwozAqgmJXwzrzSVNrLcERVUlTdHJva2U='),Main)
+    MS.Color=Color3.fromRGB(230,90,0); MS.Thickness=2
+
+    local Title=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('BtNQhWTeDWXMIqpwMyIJSVQEJmukIkgqLeLnOmAiURuBDEfrUzQlvgWVGV4dExhYmVs'),Main)
+    Title.Size=UDim2.new(1,-50,0,40); Title.Position=UDim2.new(0,14,0,0)
+    Title.BackgroundTransparency=1; Title.Text=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('LxdNchYInvjrqgRVaEVvMzJrsMtmulOtGFwglzlGXsRDTGdeaaPLhmg8J+OgyBKSlMgRmFybSB2OC40')
+    Title.TextColor3=Color3.fromRGB(255,140,0)
+    Title.Font=Enum.Font.SourceSansBold; Title.TextSize=17
+    Title.TextXAlignment=Enum.TextXAlignment.Left
+
+    local MinBtn=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('YjPvYJJHnwWMqJTgarbkIyOSgLWEmGtnEUDpwjiYgvmUUJcItJzwMTEVGV4dEJ1dHRvbg=='),Main)
+    MinBtn.Size=UDim2.new(0,32,0,32); MinBtn.Position=UDim2.new(1,-40,0,4)
+    MinBtn.BackgroundColor3=Color3.fromRGB(180,70,0); MinBtn.Text=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ocJYXLmplxqgwDnMrXGVLqgwnczVCZUNwmtOzpOfIWgvoNDhhzUsynU4p6W')
+    MinBtn.TextColor3=Color3.fromRGB(255,255,255)
+    MinBtn.Font=Enum.Font.SourceSansBold; MinBtn.TextSize=16
+    MinBtn.ZIndex=3
+    Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('zaWkQtNNknSWHsDRethpOhCIpDdSBZRRDyAvpZqyDCRBvmKzSRjOHyHVUlDb3JuZXI='),MinBtn).CornerRadius=UDim.new(0,7)
+
+    local Body=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('oBaETMwkRjHFePOICAcllSABNAUDbgGYraDblhvGguVMilfxXbpAhZnRnJhbWU='),Main)
+    Body.Size=UDim2.new(1,0,1,-40); Body.Position=UDim2.new(0,0,0,40)
+    Body.BackgroundTransparency=1; Body.ClipsDescendants=true
+
+    local Status=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('wCtSCkEJyfpeKgpZLufRgwKKUvSbeCFdjfnbtBFgqlFIkzrctjvFUjuVGV4dExhYmVs'),Body)
+    Status.Size=UDim2.new(1,-28,0,60); Status.Position=UDim2.new(0,14,0,6)
+    Status.BackgroundTransparency=1
+    Status.Text=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('XLnDENXOPyUQksnAHZViHSQXxYlbgHAKmzRndBqueAdpbVXYMVFmOXMSWRsZSB8IERvb3JzOiAwIHwgLS06LS0=')
+    Status.TextColor3=Color3.fromRGB(220,220,220)
+    Status.Font=Enum.Font.SourceSans; Status.TextSize=13
+    Status.TextXAlignment=Enum.TextXAlignment.Left
+    Status.TextYAlignment=Enum.TextYAlignment.Top
+    Status.TextWrapped=true
+
+    local Sep=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('tRdJnzIoyLBoXSHyaMSvxHdmHptEiAwUKHhSSkcmEOhtNkLLeKVBJJMRnJhbWU='),Body)
+    Sep.Size=UDim2.new(1,-28,0,1); Sep.Position=UDim2.new(0,14,0,70)
+    Sep.BackgroundColor3=Color3.fromRGB(230,90,0); Sep.BorderSizePixel=0
+
+    local Scroll=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('LRZLbHaHycnMlLkakUBRzXeEoCIIDCEhtxBPejojgdPjGKBaGHiGfDZU2Nyb2xsaW5nRnJhbWU='),Body)
+    Scroll.Size=UDim2.new(1,0,1,-72); Scroll.Position=UDim2.new(0,0,0,72)
+    Scroll.BackgroundTransparency=1; Scroll.ScrollBarThickness=5
+    Scroll.CanvasSize=UDim2.new(0,0,0,700)
+    Scroll.ScrollBarImageColor3=Color3.fromRGB(230,90,0)
+    Scroll.BorderSizePixel=0; Scroll.ClipsDescendants=true
+
+    bindClick(MinBtn, function()
+        Body.Visible=not Body.Visible
+        Main.Size=Body.Visible and UDim2.new(0,320,0,600) or UDim2.new(0,320,0,40)
+        MinBtn.Text=Body.Visible and qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('sYOxCvBkiXJykSmIFXDmbanWdkpXpEVGkYGkRebrZlTXXbnoMXcSWwQ4p6W') or qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('yJEPUcYAFQXCoNHlSWVuNXWDziQtMfrwhqeTLJJwVbNTsgxHYyaxZER4p6V')
+    end)
+
+    return {
+        Gui=Gui, Main=Main, Body=Body, Status=Status, Scroll=Scroll,
+        setStatus=function(txt) Status.Text=txt end,
+    }
+end
+
+-- Fábricas de widgets
+local function makeToggle(parent,label,y,init,fn)
+    local b=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('jpPyOKsisUeKrpFblAULQZfSSWplfhNMOSQcMlzzsPwRHKWGWxWzJvFVGV4dEJ1dHRvbg=='),parent)
+    b.Size=UDim2.new(1,-28,0,34); b.Position=UDim2.new(0,14,0,y)
+    b.BackgroundColor3=Color3.fromRGB(40,40,40); b.Text=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('vxCiurFamuBmIEweqmDVAvZoNHEKtcUiDkVTBLaAENnsHRquJSykUHY')
+    b.AutoButtonColor=true; b.ZIndex=2
+    Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('JUBOOFCLUTnXfEjmpyqwkxtOTcZzUMWXevQwVoAztUORHMzvhSvLGTBVUlDb3JuZXI='),b).CornerRadius=UDim.new(0,7)
+    local dot=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('bWSEkSlccFVwzOmbiwHXXZIrwjGMNCiilSIebFELAyTJjLndAcWJKwnVGV4dExhYmVs'),b)
+    dot.Size=UDim2.new(0,24,1,0); dot.Position=UDim2.new(0,8,0,0)
+    dot.BackgroundTransparency=1
+    dot.Font=Enum.Font.SourceSansBold; dot.TextSize=17; dot.ZIndex=3
+    local lbl=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('qGYBUHNliFcblJfxwcbyIajXqHiHSdSPUaaZZrOAJSEExHcckiLrVIRVGV4dExhYmVs'),b)
+    lbl.Size=UDim2.new(1,-38,1,0); lbl.Position=UDim2.new(0,32,0,0)
+    lbl.BackgroundTransparency=1; lbl.TextColor3=Color3.fromRGB(255,255,255)
+    lbl.Font=Enum.Font.SourceSansSemibold; lbl.TextSize=13
+    lbl.TextXAlignment=Enum.TextXAlignment.Left; lbl.ZIndex=3
+    local on=init
+    local function render()
+        if on then
+            dot.Text=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('KyQVnXlyvjjPwwfVkuRnQQkJVJBTGXcilNtDhYcVXxbvHdABFskIbax4peP'); dot.TextColor3=Color3.fromRGB(90,255,90)
+            lbl.Text=label..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('XjuIdHepMtxfxlArgNPZABnQbizNgkklBceDEwTbVIpNnwtlvcumXaUOiBPTg=='); b.BackgroundColor3=Color3.fromRGB(180,70,0)
+        else
+            dot.Text=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ECCdIlpPqihnliAzcPmqJukIkTaZhPlKTJIrsyLEiLEWYGdKLHuXnZO4peL'); dot.TextColor3=Color3.fromRGB(160,160,160)
+            lbl.Text=label..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('cYBRGfNzxJEfLutNGRBdLSxZlEWigycyxChdhARURIrEyqGaxmtjUaROiBPRkY='); b.BackgroundColor3=Color3.fromRGB(40,40,40)
+        end
+    end
+    bindClick(b,function()
+        on=not on; render(); pcall(fn,on)
+    end)
+    render()
+    return b
+end
+
+local function makeButton(parent,text,y,color,fn)
+    local b=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('bIEjPNtdqWLblprgCeBVwpSyUIQxZEyvgwQgnzpfDxYfeXizmInsTPxVGV4dEJ1dHRvbg=='),parent)
+    b.Size=UDim2.new(1,-28,0,34); b.Position=UDim2.new(0,14,0,y)
+    b.BackgroundColor3=color; b.Text=text
+    b.TextColor3=Color3.fromRGB(255,255,255)
+    b.Font=Enum.Font.SourceSansSemibold; b.TextSize=13
+    b.AutoButtonColor=true; b.ZIndex=2
+    Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('clqmnJHBvvFkoiAdkDsLNeanrkhSzMYNwjsEcuTbnXIaPplIPgcRuSGVUlDb3JuZXI='),b).CornerRadius=UDim.new(0,7)
+    bindClick(b,fn)
+    return b
+end
+
+local function makeTextBox(parent,label,init,y,onChange)
+    local c=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('YXizPqxZcURUaoVfULwGUcNbalmXwfjREpkJrGfrjiaxcMlcMcDykMURnJhbWU='),parent)
+    c.Size=UDim2.new(1,-28,0,34); c.Position=UDim2.new(0,14,0,y)
+    c.BackgroundTransparency=1; c.ZIndex=2
+    local lbl=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('HurKflbDtTaUClVWqriNvadiyhkBdJqDrsfPINVJryiuBCQbpPJHelZVGV4dExhYmVs'),c)
+    lbl.Size=UDim2.new(0.55,0,1,0); lbl.BackgroundTransparency=1
+    lbl.Text=label; lbl.TextColor3=Color3.fromRGB(210,210,210)
+    lbl.Font=Enum.Font.SourceSansSemibold; lbl.TextSize=12
+    lbl.TextXAlignment=Enum.TextXAlignment.Left; lbl.ZIndex=2
+    local box=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('KaGNBHhniDIyjxIySmAtwBITdxnfDnlnexOqBgQlvzQLlKpLwdjaNaTVGV4dEJveA=='),c)
+    box.Size=UDim2.new(0.42,0,0.85,0); box.Position=UDim2.new(0.57,0,0.08,0)
+    box.BackgroundColor3=Color3.fromRGB(40,40,40); box.Text=tostring(init)
+    box.TextColor3=Color3.fromRGB(255,255,255)
+    box.Font=Enum.Font.SourceSansBold; box.TextSize=13
+    box.ClearTextOnFocus=false; box.ZIndex=2
+    Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('OnvoMbxzzGPemfriXnZMmIhgchnjlpvzyEUTOxDTzhbzikeNvjRypFuVUlDb3JuZXI='),box).CornerRadius=UDim.new(0,6)
+    box.FocusLost:Connect(function()
+        local n=tonumber(box.Text)
+        if n then pcall(onChange,n) else box.Text=tostring(init) end
+    end)
+    return box
+end
+
+--============================================================
+-- PORTAS — DETECÇÃO
+--============================================================
+local function doorTimer(m)
+    for _,d in ipairs(m:GetDescendants()) do
+        if d:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('AMuxoJVjsfGFYRdpoUcBRfpvyvZnKsJjBLdNAwZszBwrogZagPddOhLVGV4dExhYmVs')) and d.Text~=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('tKzzkuIjcthETEoCrGCNWazhLMitNiniZolkwUzwxwuIkBppWUJESFw') then return d.Text end
+    end
+    return qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('LPQHRQGUPaHmKSfyCEmFOURoNoyfYXiRyjacIUVzBRlVLZiLkYgvyBeMDowMA==')
+end
+
+local function timerZero(s)
+    local c=string.lower((s or qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('tNRhtLaMejoenioiPggHpwimkSMHuoLxioblGxyIaFBMKjfqDqIJpxh')):gsub(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('EfLgkariQgGBalGpiGtZkgGXqrDMjqiMsZqIHypIXKzrlWIvSqJjVJvJXMr'),qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('apueooUyKTfNJNwlpSYxZAwBBECsLtIlcugdcLZMwvCqKobEocKSeMC')))
+    return c==qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('aUXArjcDoanuencJtyymgeKEFWMeExrHfgQJHiGqLHASKlxykUDXSRLMDowMA==') or c==qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('wHbPAZOsUWpoCJBLRlopUYRHmxHfMXGOxRHgSCcHqgTCNjcKPpgnUqzMDA6MDA=') or c==qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('pkLNdGQCUCoHwYVoFkFOnKDiKCQXuqpfXMhmzCebKQpFOaIKALbfGZzMA==') or c==qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('uUpGmCiFxWFAnfbfpEgJvjwQTHswyttGThQWwJHUKefEQnRoGQAENXP')
+        or c:find(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('qwYVcrvsQGNRXkgRKvlitmyTNhLmWrqPiNxFOlodzNoXLCIRkyxfdmqb3Blbg==')) or c:find(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('lyjiboRnVljZAsxugnXOGNnjCBvKKdjCRBMVZfFCMwqjtmqdDJUmmStcmVhZHk='))
+end
+
+local function pruneSkip()
+    local now=os.clock()
+    for m,t in pairs(State.doors.skip) do
+        if t<now or not m or not m.Parent then State.doors.skip[m]=nil end
+    end
+    -- limpa portas usadas que sumiram
+    for m in pairs(State.usedDoors) do
+        if not m or not m.Parent then State.usedDoors[m]=nil end
+    end
+end
+
+local function refreshDoors()
+    State.doors.list={}
+    local ef=workspace:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('CTNkAVwaevABpSPXErVvnfhtuTnTkcpjPPRnkDFegcxvYXQraCBbgBbRWZmZWN0cw=='))
+    local list=ef and ef:GetChildren() or workspace:GetChildren()
+    for _,obj in ipairs(list) do
+        local dm=(obj.Name==qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('HBYPWrlRkuGGUQkdUYmabePFRBqlbKrcjjurEAihQeyKozMRsNVwXhJSGFsbG93ZWVuRG9vcg==')) and obj
+            or obj:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('SYNahqpdsGSpuMrHHuZIIrOSwFSQhwcbeVZgEcHGxjSYLwVXNOMfoohSGFsbG93ZWVuRG9vcg=='))
+        if dm then
+            local tp=dm:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('DjjhOegHPSEjPsQAOLCjvgVVlSdoGrUNQFdBECYvdtSUknMhlHoDFyEVW5pb24='),true)
+                or (dm:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('EhrLTHyIuQNPsylHHsOtRVQGdaecPVJOjNHGrmNGtTHhkRodAnLcahSTW9kZWw=')) and (dm.PrimaryPart
+                    or dm:FindFirstChildWhichIsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('pWtBxtyWTGplfFBTQkCoJZodfFzTRgqgEhpOZMSxvpagcVKNvPHDjhLQmFzZVBhcnQ='),true)))
+                or (dm:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('CRisUadNcdcfWrdnbFXrzNfOkFCXKRuIwXhUGlnSJiMKPAqsQmQbglfQmFzZVBhcnQ=')) and dm)
+            if tp and tp.Position.Y>-100 then
+                State.doors.list[#State.doors.list+1]={Model=dm,Part=tp}
+            end
+        end
+    end
+end
+
+local function playerNearPart(part, radius)
+    radius=radius or Cfg.DoorPlayerCheckRadius
+    if not part then return false end
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p~=LP then
+            local oh=p.Character and p.Character:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('uBezcfHvhjhDfdliDfFAUiuFDLNgytBgqQNtlnpJfARpWYbJxOQBkrbSHVtYW5vaWRSb290UGFydA=='))
+            if oh and (oh.Position-part.Position).Magnitude<radius then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- nearestDoor: prioriza vazias, pula usadas e skip
+local function nearestDoor(includeUsed)
+    pruneSkip()
+    if (os.clock()-State.doors.last>Cfg.DoorRefreshInterval) or #State.doors.list==0 then
+        refreshDoors(); State.doors.last=os.clock()
+    end
+    local hrp=getHRP(); if not hrp then return nil end
+    local bestEmpty, bdEmpty = nil, math.huge
+    local bestAny,   bdAny   = nil, math.huge
+
+    for _,d in ipairs(State.doors.list) do
+        if d.Part and d.Part.Parent
+           and not State.doors.skip[d.Model]
+           and (includeUsed or not State.usedDoors[d.Model]) then
+            local dist=(d.Part.Position-hrp.Position).Magnitude
+            local hasPlayer=playerNearPart(d.Part)
+            local entry={
+                Model=d.Model, Part=d.Part,
+                Distance=math.floor(dist),
+                Timer=doorTimer(d.Model),
+                HasPlayer=hasPlayer,
+            }
+            if dist<bdAny then bdAny=dist; bestAny=entry end
+            if not hasPlayer and dist<bdEmpty then
+                bdEmpty=dist; bestEmpty=entry
+            end
+        end
+    end
+
+    if Cfg.IgnoreDoorWithPlayers then return bestEmpty end
+    return bestAny
+end
+
+local function doorApproachPoints(part)
+    local cf=part.CFrame; local s=Cfg.DoorStandoff
+    return {
+        (cf*CFrame.new(0,0,s)).Position,
+        (cf*CFrame.new(0,0,-s)).Position,
+        (cf*CFrame.new(s,0,0)).Position,
+        (cf*CFrame.new(-s,0,0)).Position,
+        part.Position,
+    }
+end
+
+--============================================================
+-- HIDE
+--============================================================
+local function applyHide()
+    if not Cfg.HideParts then return end
+    local ch=LP.Character; if not ch then return end
+    for _,p in ipairs(ch:GetDescendants()) do
+        if p:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('NpajfERyWcrmfmFBIdScCBwqfNRRMLnZUCgefpxogYmlLSuwTOuUwaOQmFzZVBhcnQ=')) then
+            pcall(function() p.LocalTransparencyModifier=1 end)
+        elseif p:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ScasFEWsjfnsqHliurouBOUEZHbRLdUfGJiiKusJqivgnpKaVLBJStARGVjYWw=')) or p:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('SsCHqKXRzsggEGPDPXSobTGaKvjuSkditJqiuWibFiJSaoPFferzxxWVGV4dHVyZQ==')) then
+            pcall(function() p.Transparency=1 end)
+        end
+    end
+end
+
+local function restoreHide()
+    local ch=LP.Character; if not ch then return end
+    for _,p in ipairs(ch:GetDescendants()) do
+        if p:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('tMyTmbemIpFABcLZdZHYcFwZTfzqnEeTzOEOswYUSvtmmJrcBfzIIJvQmFzZVBhcnQ=')) then
+            pcall(function() p.LocalTransparencyModifier=0 end)
+        elseif p:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('XqaCBlenkzZsvkKZoSGvwSiUvkrJqpNVAAaydwvNEqUdiJIGfcJKttGRGVjYWw=')) or p:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('fEdcptLFMqvCqlNRBnrnLwzrorZqXsqNlrlqMkHBCZXWumczsAyrxWOVGV4dHVyZQ==')) then
+            pcall(function() p.Transparency=0 end)
+        end
+    end
+end
+
+--============================================================
+-- TRAJETÓRIA
+--============================================================
+local function clearTrajectory()
+    for _,v in ipairs(State.trajRefs) do
+        if v and v.Parent then v:Destroy() end
+    end
+    State.trajRefs={}
+end
+
+local function showTrajectory(points)
+    clearTrajectory()
+    if not Cfg.ShowTrajectory then return end
+    for i,pos in ipairs(points) do
+        local p=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ciOqMCTAbXQkZObKBLDjjHceOgnPQtQmVFSIcFVjXhlpnNkgOYSQIAbUGFydA=='))
+        p.Shape=Enum.PartType.Ball
+        p.Size=Vector3.new(0.5,0.5,0.5)
+        p.Anchored=true; p.CanCollide=false; p.CanQuery=false
+        p.Material=Enum.Material.Neon
+        p.Color=Color3.fromRGB(255,140,0)
+        p.Transparency=0.3
+        p.CFrame=CFrame.new(pos)
+        p.Parent=NODE_F
+        State.trajRefs[#State.trajRefs+1]=p
+    end
+end
+
+--============================================================
+-- MOVIMENTO
+--============================================================
+local function stopTween()
+    if State.activeTween then
+        pcall(function() State.activeTween:Cancel() end)
+        State.activeTween=nil
+    end
+end
+
+local function clearLine(a, b)
+    local flat=Vector3.new(b.X-a.X,0,b.Z-a.Z)
+    if flat.Magnitude<0.1 then return true end
+    local rp=RaycastParams.new()
+    rp.FilterType=Enum.RaycastFilterType.Exclude
+    rp.FilterDescendantsInstances={LP.Character,ESP_F,NODE_F}
+    local lift=Vector3.new(0,2,0)
+    local dir=flat.Unit
+    local side=dir:Cross(Vector3.yAxis)
+    local r=Cfg.AgentRadius
+    local offsets={
+        Vector3.zero,
+        side*r, -side*r,
+        dir*r, -dir*r,
+        (side+dir).Unit*r, (side-dir).Unit*r,
+        (-side+dir).Unit*r, (-side-dir).Unit*r,
+    }
+    for _,off in ipairs(offsets) do
+        if workspace:Raycast(a+off+lift, flat, rp) then return false end
+    end
+    return true
+end
+
+local function sameLevel(a, b)
+    return math.abs(b.Y-a.Y) <= 3
+end
+
+local function moveTo(pos, flag)
+    local hrp=getHRP(); if not hrp then return false end
+    if (pos-hrp.Position).Magnitude < Cfg.ReachDist then return true end
+    if math.abs(pos.Y - hrp.Position.Y) > 3 then return false end
+
+    local dur=math.min(
+        math.max((pos-hrp.Position).Magnitude/Cfg.WalkSpeed, 0.05),
+        Cfg.MoveCapDuration
+    )
+    stopTween()
+    State.activeTween=TweenService:Create(hrp,
+        TweenInfo.new(dur, Enum.EasingStyle.Linear),
+        {CFrame=CFrame.lookAt(pos, pos+hrp.CFrame.LookVector)})
+    State.activeTween:Play()
+
+    local t0=os.clock()
+    while os.clock()-t0<dur+0.15 do
+        if not flag() or State.modeChanged or State.moveLock then
+            stopTween(); return false
+        end
+        if not getHRP() then stopTween(); return false end
+        task.wait()
+    end
+    stopTween()
+
+    local h2=getHRP(); if not h2 then return false end
+    return (pos-h2.Position).Magnitude <= Cfg.ReachDist+2
+end
+
+local function compressPath(wps)
+    if #wps<=2 then return wps end
+    local start=wps[1]
+    local far=wps[2]
+    for j=#wps,2,-1 do
+        local cand=wps[j]
+        if cand.Action==Enum.PathWaypointAction.Jump then
+            far=cand; break
+        end
+        if (cand.Position-start.Position).Magnitude<=Cfg.MaxSkipDist
+           and clearLine(start.Position, cand.Position) then
+            far=cand; break
+        end
+        far=cand
+    end
+    return {start, far}
+end
+
+local function goTo(target, flag)
+    if State.moveLock then return false end
+    local attempts=0
+    while flag() and not State.dead do
+        attempts=attempts+1
+        if attempts>30 then return false end
+
+        local hrp=getHRP()
+        if not hrp then return false end
+        if (target-hrp.Position).Magnitude<=Cfg.ReachDist then
+            clearTrajectory(); return true
+        end
+
+        if sameLevel(hrp.Position, target) and clearLine(hrp.Position, target) then
+            showTrajectory({hrp.Position, target})
+            local ok=moveTo(target, flag)
+            clearTrajectory()
+            if ok then return true end
+            task.wait(0.1)
+        end
+
+        local path=PathfindingService:CreatePath({
+            AgentRadius=Cfg.AgentRadius,
+            AgentHeight=Cfg.AgentHeight,
+            AgentCanJump=true,
+            AgentMaxSlope=45,
+        })
+        local ok=pcall(function() path:ComputeAsync(hrp.Position, target) end)
+        if not ok or (path.Status~=Enum.PathStatus.Success
+            and path.Status~=Enum.PathStatus.ClosestNoPath) then
+            task.wait(0.2); return false
+        end
+        local wps=path:GetWaypoints()
+        if not wps or #wps<2 then return false end
+
+        wps=compressPath(wps)
+        local viz={}
+        for _,w in ipairs(wps) do
+            viz[#viz+1]=w.Position+Vector3.new(0,Cfg.YOffset,0)
+        end
+        showTrajectory(viz)
+
+        local wp=wps[2]
+        local pos=wp.Position+Vector3.new(0,Cfg.YOffset,0)
+
+        if wp.Action==Enum.PathWaypointAction.Jump then
+            local hum=LP.Character and LP.Character:FindFirstChildOfClass(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('MlQDRvJCESsHcVQmcgSFrDhZOxydcjHPENYPGmuCuCluKVaYPDwMWigSHVtYW5vaWQ='))
+            if hum then hum.Jump=true end
+            task.wait(0.25)
+        else
+            local t0=os.clock()
+            local reached=false
+            while os.clock()-t0<Cfg.WaypointTimeout do
+                if not flag() then clearTrajectory(); return false end
+                local ok2=moveTo(pos, flag)
+                if ok2 then reached=true; break end
+                local h2=getHRP()
+                if h2 and (h2.Position-pos).Magnitude<=Cfg.ReachDist+3 then
+                    reached=true; break
+                end
+            end
+            if not reached then task.wait(0.05) end
+        end
+        clearTrajectory()
+    end
+    return false
+end
+
+local function navigateToDoor(part, flag, doorCheck)
+    if not part or not part.Parent then return false end
+    local hrp=getHRP(); if not hrp then return false end
+
+    local curDist=(part.Position-hrp.Position).Magnitude
+    if curDist>=Cfg.ReachDist and curDist<=Cfg.DoorStandoff+2 then
+        return true
+    end
+
+    for _,p in ipairs(doorApproachPoints(part)) do
+        if not flag() then return false end
+        if doorCheck and not doorCheck() then return false end
+        local target=p+Vector3.new(0,Cfg.YOffset,0)
+        local ok=goTo(target, function()
+            if not flag() then return false end
+            if doorCheck and not doorCheck() then return false end
+            return true
+        end)
+        if ok then
+            local h2=getHRP()
+            if h2 then
+                local d=(part.Position-h2.Position).Magnitude
+                if d>=Cfg.ReachDist and d<=Cfg.DoorStandoff+2 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--============================================================
+-- PROXIMITY PROMPT (v8.4: apertar UMA vez)
+--============================================================
+local function promptPart(p)
+    local par=p.Parent
+    if not par then return nil end
+    if par:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('vrsKujGFpoqGzsQxBnirafpkrmtzvTxHhXzgGkpXUZpUOVbNOdUYDcNQmFzZVBhcnQ=')) then return par end
+    if par:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('nlqsXEciXMgjIsBrXaszugUcnPIzRyKYpDZEDkssqOWlskGdcVWIOmdTW9kZWw=')) then
+        return par.PrimaryPart or par:FindFirstChildWhichIsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('pKsmsVUIIzJOAJIDBWkDZdAFSNMKMLYrJkBhOSCelqeCliIYIqmEadHQmFzZVBhcnQ='),true)
+    end
+    return nil
+end
+
+local function promptDistance(p)
+    local hrp=getHRP(); if not hrp then return math.huge end
+    local bp=promptPart(p)
+    if not bp then return math.huge end
+    return (bp.Position-hrp.Position).Magnitude
+end
+
+local function pressE()
+    pcall(function()
+        VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait()
+        task.wait()
+        VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        task.wait()
+    end)
+end
+
+-- Dispara UM prompt (o mais perto). Retorna true se disparou algum.
+local function fireOnePromptClosest(model)
+    if not model or not model.Parent then return false end
+    local best, bd = nil, math.huge
+    for _,p in ipairs(model:GetDescendants()) do
+        if p:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('aJvCSgQsqoivQqlhBVQCmuscnUgBCzOAdNAicXEhYFsrwKGQGMWyQqWUHJveGltaXR5UHJvbXB0')) then
+            local d = promptDistance(p)
+            if d < bd then bd=d; best=p end
+        end
+    end
+    if not best then return false end
+
+    pcall(function()
+        best.Enabled=true
+        best.MaxActivationDistance=math.max(best.MaxActivationDistance or 10, 40)
+        best.RequiresLineOfSight=false
+    end)
+
+    -- 1) fireproximityprompt (executor)
+    if fireproximityprompt then
+        if pcall(function() fireproximityprompt(best) end) then return true end
+    end
+
+    -- 2) Triggered:Fire
+    local okTriggered=false
+    pcall(function()
+        if best.Triggered then best.Triggered:Fire(LP); okTriggered=true end
+    end)
+    if okTriggered then return true end
+
+    -- Só tenta Hold / E se estiver a até 40 studs
+    if bd > 40 then return false end
+
+    -- 3) InputHoldBegin/End
+    local hold=tonumber(best.HoldDuration) or 0
+    pcall(function()
+        best:InputHoldBegin()
+        task.wait(math.max(hold,0)+0.12)
+        best:InputHoldEnd()
+    end)
+
+    -- 4) Tecla E (mouse no centro, 1 tentativa — sem loop)
+    pcall(function()
+        local cam=workspace.CurrentCamera
+        if cam then
+            local vp=cam.ViewportSize
+            VIM:SendMouseMoveEvent(Vector2.new(vp.X/2, vp.Y/2), workspace)
+            task.wait()
+        end
+    end)
+    pressE()
+
+    return true
+end
+
+-- Retorna true se conseguiu disparar em até `seconds`. Sem repetir E.
+local function firePromptOnce(model, seconds)
+    seconds = seconds or 1
+    local t0 = os.clock()
+    while os.clock()-t0 < seconds do
+        if fireOnePromptClosest(model) then
+            return true
+        end
+        task.wait(0.1)
+    end
+    return false
+end
+
+--============================================================
+-- BLATANT MODE
+--============================================================
+local function createBlatantPlatform()
+    if State.blatantPart and State.blatantPart.Parent then
+        State.blatantPart:Destroy()
+    end
+    local hrp=getHRP(); if not hrp then return end
+    local base=Vector3.new(hrp.Position.X, Cfg.BlatantHeight, hrp.Position.Z)
+    local p=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('DuFeZzptiQHogJKiyaTtvraGkStYqbGsMeFgcvZsrSVNrpnkmzYAZbZUGFydA=='))
+    p.Name=qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('jefSwNmjIkeVfdqGBZAjOhCThFXHtbEukXXSlUIrKjSWibvTAfjTDrhSkpTX0JsYXRhbnRQbGF0Zm9ybQ==')
+    p.Size=Vector3.new(Cfg.BlatantPlatformSize,1,Cfg.BlatantPlatformSize)
+    p.Anchored=true; p.CanCollide=true
+    p.Material=Enum.Material.Neon
+    p.Color=Color3.fromRGB(255,0,255)
+    p.Transparency=0.3
+    p.CFrame=CFrame.new(base - Vector3.new(0,0.5,0))
+    p.Parent=workspace
+    State.blatantPart=p
+    hrp.CFrame=CFrame.new(base + Vector3.new(0,3,0))
+end
+
+local function stopBlatantPlatform()
+    if State.blatantPart and State.blatantPart.Parent then
+        State.blatantPart:Destroy()
+    end
+    State.blatantPart=nil
+end
+
+--============================================================
+-- THREADS BASE
+--============================================================
+local function stopThread(key)
+    State.flags[key]=false
+    if State.threads[key] then
+        pcall(task.cancel, State.threads[key])
+        State.threads[key]=nil
+    end
+end
+
+--============================================================
+-- ANTI FALSE DOOR / ANTI SKELETON
+--============================================================
+local function findFakeDoor()
+    local cf=workspace:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('phpLqRmBvnuxAAWCUUEExwcZcBrDnXOAzkIaauoIcjJZFwAlYfwDvalQ2hhcmFjdGVycw=='))
+    local dt=cf and cf:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ocSDavLgklwowJqZlGGzcehmnrawTuTAwVlqYeAbrOcqBrpLgqjqXGURG9vcg=='))
+    if not dt then return nil end
+    local pri=(dt:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('VxRLwzmnjCYscnhozdHepyRwGoploxTXkxAMBNgWVeoTKSwwWdPxuNzTW9kZWw=')) and
+        (dt.PrimaryPart or dt:FindFirstChildWhichIsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('NEeMpEDBrqqufZjtUSTMcDRLjBxHUlFmVfaXGIkpTwEabcXEcrrkHWCQmFzZVBhcnQ='),true)))
+        or (dt:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('zZkPlLCvVkzoUMJsPIhqiQojgzJXAjdeNMIVQGyQcoEKskqmRKobAfOQmFzZVBhcnQ=')) and dt)
+    if pri and pri.Parent and pri.Position.Y>-100 then
+        return {Model=dt, Part=pri}
+    end
+    return nil
+end
+
+local function findSkeletonNear(maxDist)
+    local hrp=getHRP(); if not hrp then return nil end
+    local best,bd=nil, maxDist or math.huge
+    local roots={workspace}
+    local cf=workspace:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('LFhDOthomlrjIujhhIIplpSeUljdeCvSDehgKMMrMWcZxIuMDXAVdATQ2hhcmFjdGVycw=='))
+    if cf then roots[#roots+1]=cf end
+    for _,root in ipairs(roots) do
+        for _,m in ipairs(root:GetChildren()) do
+            if m:IsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('RLnEHLRGiaHWrqgEjqHkWbKzTPwBGXcvGSMwzCBSoyDUHVFhMwcqJnOTW9kZWw=')) then
+                local okName=false
+                for _,n in ipairs(Cfg.SkeletonNames) do
+                    if m.Name:lower():find(n:lower(),1,true) then
+                        okName=true; break
+                    end
+                end
+                if okName then
+                    local mh=m:FindFirstChildWhichIsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('qfAsgRCntCVcNUDlhkQdqKAyQDGJTqmOdVOMermZJQWmUxNRzLXpUgwSHVtYW5vaWQ='))
+                    local mh_rp=m:FindFirstChild(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ZWGdiimDymXqkMnUQRuHXCxfWoiEdBoueyRPJsbHdxIvVyOEIyKpWiTSHVtYW5vaWRSb290UGFydA=='))
+                        or m.PrimaryPart
+                        or m:FindFirstChildWhichIsA(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('FKenHUygddDpPrfcZahZGzafbiajHJODmTxizXkbOKOUrrzKjLEiEAWQmFzZVBhcnQ='),true)
+                    if mh and mh_rp and mh.Health>0 then
+                        local d=(mh_rp.Position-hrp.Position).Magnitude
+                        if d<bd then
+                            bd=d
+                            best={Model=m, Part=mh_rp,
+                                  Humanoid=mh, Dist=d}
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function clickM1()
+    pcall(function()
+        VIM:SendMouseButtonEvent(0,0,0,true,game,0)
+        task.wait(0.05)
+        VIM:SendMouseButtonEvent(0,0,0,false,game,0)
+    end)
+end
+
+-- Orbita em volta do alvo batendo M1.
+-- getTarget() deve retornar {Part=..., Humanoid=opcional} ou nil.
+local function orbitTarget(getTarget, flag)
+    local angle=0
+    local t0=os.clock()
+    local lastPathT=0
+
+    while flag() and not State.dead do
+        local target=getTarget()
+        if not target or not target.Part or not target.Part.Parent then
+            return
+        end
+        if target.Humanoid and target.Humanoid.Health<=0 then
+            return
+        end
+
+        local hrp=getHRP()
+        if not hrp then task.wait(0.2); return end
+
+        local tp=target.Part.Position
+        local dist=(tp-hrp.Position).Magnitude
+
+        if dist > Cfg.OrbitRadius+4 then
+            -- longe: aproxima (recalcula a cada 1s)
+            local now=os.clock()
+            if (now-lastPathT)>1.0 then
+                lastPathT=now
+                local dir=hrp.Position-tp
+                if dir.Magnitude<0.01 then dir=Vector3.new(1,0,0) end
+                dir=Vector3.new(dir.X,0,dir.Z).Unit
+                local approach=tp + dir*(Cfg.OrbitRadius+2)
+                goTo(approach+Vector3.new(0,Cfg.YOffset,0), flag)
+            else
+                task.wait(0.1)
+            end
+        else
+            -- perto: orbita batendo
+            local now=os.clock()
+            local dt=math.min(now-t0,0.1); t0=now
+            angle=angle + Cfg.OrbitSpeed*dt
+            local px=tp.X + math.cos(angle)*Cfg.OrbitRadius
+            local pz=tp.Z + math.sin(angle)*Cfg.OrbitRadius
+            local py=tp.Y + 3
+            pcall(function()
+                hrp.CFrame=CFrame.lookAt(Vector3.new(px,py,pz), tp)
+            end)
+            clickM1()
+            task.wait(0.03)
+        end
+    end
+end
+
+local function startAntiFalseDoor()
+    stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('SXFYIqDSfWNYMaXddmKUgPjdTvqNJtaXhAhrEuvTcEYtXhoWGMRgdSfQW50aUZhbHNlRG9vcg==')); State.flags.AntiFalseDoor=true
+    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('YmhqmPsuPXBwVOOsrfpTadaPuSoEkFnXHiniuLhAmUkZVlTQaAJNdwnQW50aSBGYWxzZSBEb29yOiBidXNjYW5kby4uLg=='))
+    State.threads.AntiFalseDoor=task.spawn(function()
+        while State.flags.AntiFalseDoor and not State.dead do
+            pcall(function()
+                local fd=findFakeDoor()
+                if not fd then
+                    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ghJhbSgTbfCXFpbHXpsQqzgvjvzWZrFcNIWuxBYjhOWztYScqcZMREyQW50aSBGYWxzZSBEb29yOiBzZW0gcG9ydGEgZmFsc2E='))
+                    task.wait(0.5); return
+                end
+                GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('esMDyNQaWbRstVHluoxJvjXoSAzUKzBTPCUXruBpNQMiqaKvoNQiDeJQW50aSBGYWxzZSBEb29yOiBvcmJpdGFuZG8h'))
+                orbitTarget(
+                    function() return findFakeDoor() end,
+                    function() return State.flags.AntiFalseDoor end
+                )
+            end)
+            task.wait(0.3)
+        end
+    end)
+end
+
+local function startAntiSkeleton()
+    stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('xNWvLrEyzcKgdbnSmkiZvRDnsZGlDmqXBJGDyhDfEOsMCEzmJqKAoxzQW50aVNrZWxldG9u')); State.flags.AntiSkeleton=true
+    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('JxmDFhlQYkdDRaiPQnasNpXnBnxUOONoQXNcMZyfedcDDtwgFAsTNgqQW50aSBTa2VsZXRvbjogYnVzY2FuZG8uLi4='))
+    State.threads.AntiSkeleton=task.spawn(function()
+        while State.flags.AntiSkeleton and not State.dead do
+            pcall(function()
+                local sk=findSkeletonNear(500)
+                if not sk then
+                    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('WRoHPUfhYnfKCcofIwomJDpdOcrbkNyWFaZhtVSDxZILJDEPGBgWNXVQW50aSBTa2VsZXRvbjogc2VtIHNrZWxldG9u'))
+                    task.wait(0.5); return
+                end
+                GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('sXvixBipsXxmRggtzysGMUDQzNuhhDWDhGrNkLZXkuWsBFprgaUlkPwQW50aSBTa2VsZXRvbjogb3JiaXRhbmRvIQ=='))
+                orbitTarget(
+                    function() return findSkeletonNear(500) end,
+                    function() return State.flags.AntiSkeleton end
+                )
+            end)
+            task.wait(0.3)
+        end
+    end)
+end
+
+--============================================================
+-- FARM (apertar UMA vez e ir pra próxima)
+--============================================================
+local function startFarm()
+    stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('VklcrdjxZIoVFcYhSTrrDlFyAuxnKbzzuPsdTruRlDsxuyskLQwdyNnRmFybQ==')); State.flags.Farm=true
+    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('dtlcysdcSsujpQSzGfarqQGcJsqbELLUXkbYubMakFpuYjZYJBXeTvnRmFybTogYnVzY2FuZG8gcG9ydGEuLi4='))
+    State.threads.Farm=task.spawn(function()
+        while State.flags.Farm and not State.dead do
+            pcall(function()
+                local d=nearestDoor(false)
+                if not d then
+                    -- se todas usadas/skip, tenta resetar usedDoors
+                    if next(State.usedDoors) then
+                        State.usedDoors={}
+                        d=nearestDoor(false)
+                    end
+                end
+                if not d then
+                    GUI.setStatus(Cfg.IgnoreDoorWithPlayers
+                        and qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ZjbfdwFguMcibzjzTXHnHPkrPrXVtidBIGotJSaQzPhNQFpMnIxlupGU2VtIHBvcnRhcyB2YXppYXMg4oCUIGVzcGVyYW5kbw==')
+                        or qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('IOvjZIzaUGkVWXxAIirmVZWDzYDhYHPITHoLmFoUZBoBCbPomMLCuIQU2VtIHBvcnRhcw=='))
+                    task.wait(0.3); return
+                end
+                local hrp=getHRP(); if not hrp then return end
+                local dist=(d.Part.Position-hrp.Position).Magnitude
+
+                local function stillValid()
+                    if not d.Model or not d.Model.Parent then return false end
+                    if Cfg.IgnoreDoorWithPlayers and playerNearPart(d.Part) then
+                        return false
+                    end
+                    return true
+                end
+
+                if dist<=Cfg.DoorStandoff+2 then
+                    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('xjAmfHHVwArdplBCgwFrtYrpsiRAkfDTIliyVUDppSLubSBFluEMkvORSBuYSBwb3J0YSAo')..d.Timer..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('XjgMUKyOlxojRqjhHikZGCZKWfgHNVJqNlVtSfTPlmJyMiOrJzRYWIQKQ=='))
+                    local fired=firePromptOnce(d.Model, 1)
+                    if fired then
+                        State.usedDoors[d.Model]=true
+                        task.wait(0.5)
+                        return
+                    else
+                        -- não disparou: recua e tenta uma vez
+                        GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('LqEUPWtgwahhrFvIbSXZliNRRRSuPDPvfrgpIsrnphLcSwUltaLJNJZUHJvbXB0IG7Do28gZGlzcGFyb3Ug4oCUIHJlY3VhbmRv'))
+                        local back=hrp.Position+(hrp.Position-d.Part.Position).Unit*4
+                        pcall(function() hrp.CFrame=CFrame.new(back) end)
+                        task.wait(0.3)
+                        return
+                    end
+                end
+
+                if Cfg.WaitTimer and not timerZero(doorTimer(d.Model)) then
+                    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('EPEUGLhmwCdDVRcwcgfmfWLJhIKkmqmkMGhvBDFybFdvSCxNWIlIDGRRXNwZXJhbmRvIHRpbWVyOiA=')..doorTimer(d.Model))
+                    local t0=os.clock()
+                    while State.flags.Farm and not State.dead
+                          and (os.clock()-t0)<60 do
+                        if not stillValid() then return end
+                        local cur=doorTimer(d.Model)
+                        GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('JYKWgMiSJNCRXKQiiFcpeMoazEmbZzZefccMTHWxdIhCSMZgwZOksbrRXNwZXJhbmRvOiA=')..cur)
+                        if timerZero(cur) then break end
+                        if not getHRP() then return end
+                        task.wait(0.15)
+                    end
+                end
+                if not State.flags.Farm then return end
+
+                GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ZXaFwskXfwAYkSUefDjoBZaCiaHOrbkdALAFWjCjLQArhSTBRvoHOBeSW5kbyBwYXJhIHBvcnRhICg=')..d.Distance..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('WxEpfIQlbPGGpievZLtKAmuIISTLBaEmuryGsxPmjdvztwQUJpiFHceKQ=='))
+                local ok=navigateToDoor(
+                    d.Part,
+                    function() return State.flags.Farm end,
+                    stillValid
+                )
+                if not ok then
+                    if d.Model and d.Model.Parent then
+                        State.doors.skip[d.Model]=os.clock()+Cfg.DoorSkipTime
+                    end
+                    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('cpXzbASaxgZdDSwgdijWadHJscgOvlqsxubKhKfWCyLfoEZBPEYTWcEUG9ydGEgaW5hbGNhbsOnw6F2ZWwg4oCUIHB1bGFuZG8='))
+                    task.wait(0.2)
+                    return
+                end
+
+                local h2=getHRP()
+                if h2 and stillValid() then
+                    local dd=(d.Part.Position-h2.Position).Magnitude
+                    if dd<=Cfg.DoorStandoff+2 then
+                        GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('wKqYecmzTBvKHyVEqFVSdDPQxSouCRKfULNxShcJYNUWhVrHDWAgleORSBuYSBwb3J0YSAo')..d.Timer..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('nPxLrytfRSiGjEcjSMKYVZchkPRNUZxJcgiPythCMedRPinJvdeNqWSKQ=='))
+                        local fired=firePromptOnce(d.Model, 1)
+                        if fired then
+                            State.usedDoors[d.Model]=true
+                            task.wait(0.5)
+                        else
+                            task.wait(0.2)
+                        end
+                    end
+                end
+            end)
+            task.wait(0.1)
+        end
+        GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('lmeprwLAaPmSwQOksKcHEAEnPjDVzEmNMcFLBKPxuPsJSvoBHdFwshKSWRsZQ=='))
+    end)
+end
+
+--============================================================
+-- BLATANT THREAD
+--============================================================
+local function startBlatant()
+    stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ZbRAIoaupzXQqIzUFriirNPVWhiyqtNxWpvrvYFOJibaeVeiIXjKjtQQmxhdGFudA==')); State.flags.Blatant=true
+    createBlatantPlatform()
+    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('ZZlXpSFwJOnKEHuXZHfcUfSdgBfMLMakkVnjbtIyspTMAMlyGbUwaNaQmxhdGFudDogYXRpdm8='))
+    State.threads.Blatant=task.spawn(function()
+        while State.flags.Blatant and not State.dead do
+            pcall(function()
+                local hrp=getHRP()
+                if not hrp then task.wait(0.3); return end
+                if not State.blatantPart or not State.blatantPart.Parent then
+                    createBlatantPlatform()
+                end
+                local d=nearestDoor(false)
+                if not d then
+                    if next(State.usedDoors) then State.usedDoors={} end
+                    d=nearestDoor(false)
+                end
+                if not d then
+                    GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('TufKqebySjfGJOnGlSMkGTJtkXqRtjRrVbVcMTMWMnaigSYVqwMnWxIQmxhdGFudDogc2VtIHBvcnRhcw=='))
+                    task.wait(0.5); return
+                end
+                local base=Vector3.new(hrp.Position.X, Cfg.BlatantHeight, hrp.Position.Z)
+                local inFront=base + hrp.CFrame.LookVector * 4
+                local ok=pcall(function()
+                    d.Model:PivotTo(CFrame.new(inFront))
+                end)
+                if not ok and d.Part then
+                    pcall(function() d.Part.CFrame=CFrame.new(inFront) end)
+                end
+                task.wait(0.1)
+                GUI.setStatus(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('PZRUeYycVpuAucjwzYvnJTBCxDizTfnLLKqMghqKHVQjQVLkJkRoPhqQmxhdGFudDogRSAo')..d.Timer..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('oDmGlOoODJKtnKoVsYWETXlusTabZqPiiOLhfndDHHakQTZbCyfZkiRKQ=='))
+                local fired=firePromptOnce(d.Model, 1)
+                if fired then
+                    State.usedDoors[d.Model]=true
+                    task.wait(0.5)
+                else
+                    task.wait(0.2)
+                end
+            end)
+            task.wait(0.1)
+        end
+    end)
+end
+
+--============================================================
+-- AUTO PROMPT WATCHDOG (bem leve, sem spam de E)
+--============================================================
+local function startAutoPromptWatchdog()
+    task.spawn(function()
+        while not State.dead do
+            pcall(function()
+                if not Cfg.AutoFarm then task.wait(0.5); return end
+                local hrp=getHRP(); if not hrp then task.wait(0.5); return end
+                local d=nearestDoor(true); if not d then task.wait(0.5); return end
+                local dist=(d.Part.Position-hrp.Position).Magnitude
+                if dist<=Cfg.DoorStandoff+2 and not State.usedDoors[d.Model] then
+                    -- se já está colado na porta e ainda não disparou, tenta 1x
+                    fireOnePromptClosest(d.Model)
+                end
+            end)
+            task.wait(0.4)
+        end
+    end)
+end
+
+--============================================================
+-- ESP + HEARTBEAT
+--============================================================
+RunService.Heartbeat:Connect(function()
+    if State.dead then return end
+    pcall(function()
+        local d=nearestDoor(true)
+        if Cfg.DoorESP and d then
+            if State.esp.Door~=d.Model then
+                if State.esp.HL then State.esp.HL:Destroy() end
+                if State.esp.BB then State.esp.BB:Destroy() end
+                local hl=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('WglXYqPqwWXXiZcFEqLuiLMeBCGGluvkwEVIGDIJWVrsWMFikpDyIEfSGlnaGxpZ2h0'))
+                hl.Adornee=d.Model
+                hl.FillColor=Color3.fromRGB(255,140,0)
+                hl.FillTransparency=0.5
+                hl.OutlineColor=Color3.fromRGB(255,200,0)
+                hl.OutlineTransparency=0
+                hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+                hl.Parent=ESP_F
+                local bb=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('bvjHzyAgBcvPnPavYjsiwUANgXVboecePUHDdVAVIggqfAIiGQjTomvQmlsbGJvYXJkR3Vp'))
+                bb.Adornee=d.Part
+                bb.Size=UDim2.new(0,200,0,50)
+                bb.StudsOffset=Vector3.new(0,6,0)
+                bb.AlwaysOnTop=true
+                bb.MaxDistance=500
+                bb.Parent=ESP_F
+                local l=Instance.new(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('loyBkFEvExVEhiRNahqmjNxjEEafgGvusRWPcmBUXzaaxuFEEdeBFwRVGV4dExhYmVs'),bb)
+                l.Size=UDim2.new(1,0,1,0); l.BackgroundTransparency=1
+                l.TextColor3=Color3.fromRGB(255,165,0)
+                l.TextStrokeTransparency=0
+                l.TextStrokeColor3=Color3.fromRGB(0,0,0)
+                l.Font=Enum.Font.SourceSansBold; l.TextSize=16
+                State.esp.HL=hl; State.esp.BB=bb; State.esp.L=l
+                State.esp.Door=d.Model
+            end
+            if State.esp.L then
+                State.esp.L.Text=(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('cCOXeWVQqpBiHusrRUlWXFxMQapJzgbrpCjRyFyzDsiOBtabXkiHfbPW0RPT1JdIA==')..d.Timer..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('dedMPyELQIbVGNinCgCBIlBtxXTGfrrvekQfJkVGqINjfKSUgdwhFqrIHwg')..d.Distance..qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('OrNkhyrAqaBsWbFTzMmEWzqMBooDGWvYRjAUYgExzdwyOIHjeuOXoVwcw=='))
+            end
+        else
+            if State.esp.HL then State.esp.HL:Destroy(); State.esp.HL=nil end
+            if State.esp.BB then State.esp.BB:Destroy(); State.esp.BB=nil end
+            State.esp.L=nil; State.esp.Door=nil
+        end
+        if Cfg.SafeMode then applyHide() end
+    end)
+end)
+
+--============================================================
+-- RESPAWN
+--============================================================
+LP.CharacterAdded:Connect(function()
+    stopTween(); State.modeChanged=false; State.moveLock=false
+    clearTrajectory()
+    task.wait(1.2)
+    if Cfg.SafeMode then applyHide() end
+    if Cfg.BlatantMode then
+        task.wait(0.5)
+        createBlatantPlatform()
+    end
+end)
+
+--============================================================
+-- DESTROY
+--============================================================
+local function destroyAll()
+    State.dead=true
+    for k in pairs(State.flags) do State.flags[k]=false end
+    for k,t in pairs(State.threads) do
+        if t then pcall(task.cancel,t); State.threads[k]=nil end
+    end
+    stopTween()
+    restoreHide()
+    clearTrajectory()
+    stopBlatantPlatform()
+    if ESP_F and ESP_F.Parent then ESP_F:Destroy() end
+    if NODE_F and NODE_F.Parent then NODE_F:Destroy() end
+    if GUI.Gui and GUI.Gui.Parent then GUI.Gui:Destroy() end
+    print(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('eZfnlrUOkjyqplffdCSxVJFSBigKWngBmhmOUstGtwGyMnpxBxdKusUW0pKU10gRGVzdHJveWVkLg=='))
+end
+
+--============================================================
+-- CONSTRUIR UI + TOGGLES
+--============================================================
+GUI = buildUI()
+
+local BY=6
+local function BT(label,init,fn)
+    makeToggle(GUI.Scroll, label, BY, init, fn); BY=BY+38
+end
+local function BB(text,color,fn)
+    makeButton(GUI.Scroll, text, BY, color, fn); BY=BY+38
+end
+local function TX(label,init,fn)
+    makeTextBox(GUI.Scroll, label, init, BY, fn); BY=BY+38
+end
+
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('rCPDugnuksnPWDtkIjvlfCXYhxQHrpSFsZvkPAIsxbkiCknDtDNlQIFQXV0byBGYXJt'), false, function(on)
+    Cfg.AutoFarm=on
+    if on then startFarm() else stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('vgdXKUdbEehbQWIonOuOVaBqkzdtucraFMhECjvVxsBXkGRcjpUWjaCRmFybQ==')) end
+end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('GJTtLufIxzzktcODwrbHOFWPcyVIlaNrIDKecIPpOlQJbNTVoucWgukQmxhdGFudCBNb2Rl'), false, function(on)
+    Cfg.BlatantMode=on
+    if on then startBlatant()
+    else stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('efUQTvTGOxseYQnIFpTpHODwqUAUfLcrPfFCIFdEXdWALjdKRQlYyguQmxhdGFudA==')); stopBlatantPlatform() end
+end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('JGfvfYrXuIHgYKyNAYvzosOPJgOathUSUjTceXAvTPjBsvjzaDqUUxdQW50aSBGYWxzZSBEb29y'), false, function(on)
+    Cfg.AntiFalseDoor=on
+    if on then startAntiFalseDoor()
+    else stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('PpBWaihgATkERdeXWqoMZovydvQcVEjoQwwKHXGDwhjcnywrXRzTCbUQW50aUZhbHNlRG9vcg==')) end
+end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('cufZGfjeBjtKKFMZyZJFwTvSrNayWAkRROyiYDfPjepMswzUxdKQdUUQW50aSBTa2VsZXRvbg=='), false, function(on)
+    Cfg.AntiSkeleton=on
+    if on then startAntiSkeleton()
+    else stopThread(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('XKWDgfcDlVnJOfIBwvhgPMeBxRozdDqHCKBCCTMSiLPduELnGORbRPpQW50aVNrZWxldG9u')) end
+end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('pKRIitszMfySalaiCkbVqseUFuoeaYgPNXPxPdonYaruNAxyOFXwpyDU2FmZSBNb2Rl'), false, function(on)
+    Cfg.SafeMode=on
+    if on then applyHide() else restoreHide() end
+end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('eXNjDNejGvbazPCWmZJyZpNILPbGSpnyLKTzpZwfcdBHJtrCkIaWeBmV2FpdCBUaW1lcg=='), true, function(on) Cfg.WaitTimer=on end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('XEHUuJAlzAEINcSOOpaTTZYpWhFNmswoyZaHCQrYHYERqXdYvMqNQaARG9vciBFU1A='), true, function(on) Cfg.DoorESP=on end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('AawaImimzqMtOAMqatcgsqGixKsSiHAMhsoNSQDHUqEozdTPNvqLSIOU2hvdyBUcmFqZWN0b3J5'), true, function(on)
+    Cfg.ShowTrajectory=on
+    if not on then clearTrajectory() end
+end)
+BT(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('xZBaHxnZZBkePveHLPUwCmoEpGqnMkbKqzjKmEGQFbdjvoMeqcAsdfhSWdub3JlIERvb3Igdy8gUGxheWVycw=='), false, function(on)
+    Cfg.IgnoreDoorWithPlayers=on
+end)
+
+BY=BY+6
+TX(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('YVzgcztCdTzaYHEXcyFatqXgUKdNFSBfAWcvwoJrWHxouUjcTtZfytGV2FsayBTcGVlZDo='), Cfg.WalkSpeed, function(v) Cfg.WalkSpeed=math.max(v,1) end)
+TX(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('KzrXodtAFAYxmepuWOiUuYFupgZZvwjfLtUIZrHSEZkuGBDjxrnZMWCV2FsbCBEaXN0YW5jZTo='), Cfg.AgentRadius, function(v)
+    Cfg.AgentRadius=math.max(v,1)
+end)
+TX(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('AFyMYAsgTqRQWnbpFjfvReCJtfNiUmKpMsgINJojutCjpTRZmYlidZeT3JiaXQgUmFkaXVzOg=='), Cfg.OrbitRadius, function(v)
+    Cfg.OrbitRadius=math.max(v,1)
+end)
+TX(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('CgddIffjabrKOSwbWasQoNmDdkXdmaryyrOxmkVTjqUcFSEgQzeOspcT3JiaXQgU3BlZWQ6'), Cfg.OrbitSpeed, function(v)
+    Cfg.OrbitSpeed=math.max(v,1)
+end)
+TX(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('hAVbJgaWMqBDBizBOIjRBHqjokssafoOrCJpdpdcADivMruRGKuUIZKQmxhdGFudCBIZWlnaHQ6'), Cfg.BlatantHeight, function(v)
+    Cfg.BlatantHeight=math.max(v,50)
+    if State.flags.Blatant then createBlatantPlatform() end
+end)
+TX(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('LMqDesiPqjyKEcWgQLanoGmOGitGzdHftEaFdgvdNBYIfzGzpQHWZmrRG9vciBTa2lwOg=='), Cfg.DoorSkipTime, function(v) Cfg.DoorSkipTime=math.max(v,1) end)
+TX(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('qyuSxRqFzTWMydqPhbUpkktGCNnEVGuyfjrPBjNjNangUluNDvAPZYGRG9vciBQbGF5ZXIgUmFkaXVzOg=='), Cfg.DoorPlayerCheckRadius, function(v)
+    Cfg.DoorPlayerCheckRadius=math.max(v,1)
+end)
+
+BY=BY+6
+BB(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('qTQZWPkCsUJqOcLFwtOacLedrtcmrMJWrRjXYMeeDuEjvnjnaablDZO4pyWIERlc3Ryb3k='), Color3.fromRGB(150,40,40), destroyAll)
+
+GUI.Scroll.CanvasSize=UDim2.new(0,0,0,BY+10)
+
+--============================================================
+-- START
+--============================================================
+startAutoPromptWatchdog()
+print(qMejctBnDbxiaCKNvsLKHWtDgCFmlRDeMitfiodRhihUTHOqPVGqF('kbUVDTcxUXGFvhStHlqqYqfdqODiCOYFARKXxMjgcgLeTXpojCbFdwa8J+OgyBKSlMgRmFybSB2OC40IGxvYWRlZA=='))    
